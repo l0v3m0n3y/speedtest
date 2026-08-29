@@ -154,13 +154,6 @@ public final class SpeedTest {
     public func runSpeedTest(limit: Int = 1) async throws -> (download: Double, upload: Double) {
         let rawJSON = try await getServersList(limit: limit)
 
-        if debugPrintRawServerJSON {
-            if let data = try? JSONSerialization.data(withJSONObject: rawJSON, options: [.prettyPrinted]),
-               let str = String(data: data, encoding: .utf8) {
-                print("=== RAW SERVER LIST JSON ===\n\(str)\n=============================")
-            }
-        }
-
         let servers = parseServers(from: rawJSON)
         guard let bestServer = servers.first else {
             throw SpeedTestError.noServersFound
