@@ -226,8 +226,10 @@ public final class SpeedTest {
 
 
     private func testDownloadSpeed(server: SpeedtestServer) async throws -> Double {
-        let hostName = server.host.components(separatedBy: ":").first ?? server.host
-        let downloadURLString = "https://\(hostName)/download?size=25000000"
+        let downloadURLString = "https://\(server.host)/download?size=25000000"
+        if debugPrintRawServerJSON {
+            print("[debug] download URL: \(downloadURLString)")
+        }
 
         guard let url = URL(string: downloadURLString) else { return 0.0 }
 
@@ -272,6 +274,9 @@ public final class SpeedTest {
 
     private func testUploadSpeed(server: SpeedtestServer) async throws -> Double {
         let uploadURLString = server.uploadUrl.replacingOccurrences(of: "http://", with: "https://")
+        if debugPrintRawServerJSON {
+            print("[debug] upload URL: \(uploadURLString)")
+        }
         guard let url = URL(string: uploadURLString) else { return 0.0 }
 
         let uploadSize = 10 * 1024 * 1024
@@ -301,8 +306,6 @@ public final class SpeedTest {
         }
 
         let duration = max(endTime - startTime, 0.001)
-        // Use the actual payload size we sent, not counting multipart overhead separately
-        // (overhead is negligible relative to 10 MB).
         let sizeInBits = Double(uploadSize) * 8.0
         let speedMbps = (sizeInBits / duration) / 1_000_000.0
 
