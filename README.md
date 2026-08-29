@@ -29,6 +29,7 @@ struct SpeedTestDemo {
             print("   ERROR running speed test: \(error.localizedDescription)")
             exit(1)
         }
+        }
 }
 ```
 
