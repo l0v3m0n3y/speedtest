@@ -58,7 +58,7 @@ public struct SpeedtestServer {
 
 private final class ThroughputDelegate: NSObject, URLSessionDataDelegate, URLSessionTaskDelegate {
     private(set) var bytesReceived: Int = 0
-    private(set) var firstByteTime: CFAbsoluteTime?
+    private(set) var firstByteTime: Double?
     private(set) var httpStatus: Int?
     private var completion: ((Result<Data, Error>) -> Void)?
     private var buffer = Data()
@@ -71,7 +71,7 @@ private final class ThroughputDelegate: NSObject, URLSessionDataDelegate, URLSes
         if let http = response as? HTTPURLResponse {
             httpStatus = http.statusCode
         }
-        firstByteTime = CFAbsoluteTimeGetCurrent()
+        firstByteTime = Date().timeIntervalSince1970
         completionHandler(.allow)
     }
 
@@ -246,26 +246,19 @@ public final class SpeedTest {
         let delegate = ThroughputDelegate()
         let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
 
-        let endTime: CFAbsoluteTime
-        let startTime: CFAbsoluteTime
-        var receivedBytes = 0
-
-        do {
-            let (data, response) = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(Data, URLResponse), Error>) in
-                delegate.start { result in
-                    switch result {
-                    case .success(let data):
-                        continuation.resume(returning: (data, URLResponse()))
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
-                    }
+        let receivedData: Data = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
+            delegate.start { result in
+                switch result {
+                case .success(let data):
+                    continuation.resume(returning: data)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
                 }
-                let task = session.dataTask(with: request)
-                task.resume()
             }
-            receivedBytes = data.count
-            _ = response
+            let task = session.dataTask(with: request)
+            task.resume()
         }
+        let receivedBytes = receivedData.count
 
         guard let firstByte = delegate.firstByteTime else {
             throw SpeedTestError.badHTTPStatus(0)
@@ -273,8 +266,8 @@ public final class SpeedTest {
         if let status = delegate.httpStatus, !(200...299).contains(status) {
             throw SpeedTestError.badHTTPStatus(status)
         }
-        startTime = firstByte
-        endTime = CFAbsoluteTimeGetCurrent()
+        let startTime = firstByte
+        let endTime = Date().timeIntervalSince1970
 
         let duration = max(endTime - startTime, 0.001)
         let sizeInBits = Double(receivedBytes) * 8.0
@@ -306,9 +299,9 @@ public final class SpeedTest {
         request.httpBody = body
         request.timeoutInterval = 30
 
-        let startTime = CFAbsoluteTimeGetCurrent()
+        let startTime = Date().timeIntervalSince1970
         let (_, response) = try await session.data(for: request)
-        let endTime = CFAbsoluteTimeGetCurrent()
+        let endTime = Date().timeIntervalSince1970
 
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             throw SpeedTestError.badHTTPStatus(http.statusCode)
